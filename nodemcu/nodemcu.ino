@@ -1,9 +1,12 @@
 #include "I2Cdev.h"
 #include "MPU6050.h"
 #include "Wire.h"
+#include "WiFi.h"
+#include "HTTPClient.h"
+#include <WebServer.h>
 
-MPU6050 mpu;
 
+//  Washing, Rinse, Spin
 // Raw value threshold for vibration. 
 // At 2G sensitivity, 16384 = 1G. 
 // 1000-2000 is usually a good starting range for washing machine vibrations.
@@ -15,24 +18,77 @@ unsigned long lastVibrationTime = 0;
 bool isWashing = false;
 
 int16_t ax, ay, az;
+MPU6050 mpu;
+WebServer server(8010);
+
+void connectToWifi() {
+    // const char* ssid = "zayarlyn";
+    // const char* password = "ffffffff";
+    const char* ssid = "SIT-HACKATHON";
+    const char* password = "sithackathon";
+    WiFi.begin(ssid, password);
+
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println("IP Address: ");
+    Serial.println(WiFi.localIP());
+
+}
+
+void sendGetRequest() {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    
+    // Replace with your API endpoint
+    String url = "https://api.agify.io/?name=meelad";
+    
+    http.begin(url); 
+    int httpResponseCode = http.GET(); // Send the request
+
+    if (httpResponseCode > 0) {
+      Serial.print("HTTP Response code: ");
+      Serial.println(httpResponseCode);
+      String payload = http.getString();
+      Serial.println(payload);
+    } else {
+      Serial.print("Error code: ");
+      Serial.println(httpResponseCode);
+    }
+    http.end(); // Free resources
+  }
+}
 
 void setup() {
     Serial.begin(115200);
     delay(2000);
     Wire.begin(21, 22);
+    connectToWifi();
 
     Serial.println("Initializing MPU6050...");
     mpu.initialize();
 
-    if (!mpu.testConnection()) {
-        Serial.println("MPU6050 connection failed!");
-    }
+    // if (!mpu.testConnection()) {
+    //     Serial.println("MPU6050 connection failed!");
+    // }
 
     // Set range to 2G for high sensitivity to vibration
     mpu.setFullScaleAccelRange(MPU6050_ACCEL_FS_2);
+    sendGetRequest();
+
+    server.on("/status", HTTP_GET, []() {
+      server.send(200, "text/plain", isWashing ? "Washing" : "Available");
+    });
+    
+    // Start server
+    server.begin();
+    Serial.println("HTTP Server started");
+    
 }
 
 void loop() {
+    server.handleClient();
     // Get raw accelerometer values
     mpu.getAcceleration(&ax, &ay, &az);
 
