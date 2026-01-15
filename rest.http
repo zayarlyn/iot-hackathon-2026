@@ -1,0 +1,7 @@
+POST http://localhost:8080/update-status/1
+Content-Type: application/json
+
+{
+  "status": "wash",
+  "wash_threshold": 1800
+}

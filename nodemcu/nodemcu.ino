@@ -4,6 +4,7 @@
 #include "WiFi.h"
 #include "HTTPClient.h"
 #include <WebServer.h>
+#include <ArduinoJson.h>
 
 
 //  Washing, Rinse, Spin
@@ -42,7 +43,7 @@ void sendGetRequest() {
     HTTPClient http;
     
     // Replace with your API endpoint
-    String url = "https://api.agify.io/?name=meelad";
+    String url = "http://10.4.160.15:8080/device/1";
     
     http.begin(url); 
     int httpResponseCode = http.GET(); // Send the request
@@ -51,7 +52,41 @@ void sendGetRequest() {
       Serial.print("HTTP Response code: ");
       Serial.println(httpResponseCode);
       String payload = http.getString();
+      Serial.println("Raw response: ");
       Serial.println(payload);
+      
+      // Parse JSON
+      JsonDocument doc;
+      DeserializationError error = deserializeJson(doc, payload);
+      
+      if (error) {
+        Serial.print("JSON parsing failed: ");
+        Serial.println(error.c_str());
+        return;
+      }
+      
+      // Access JSON fields - adjust these based on your actual API response
+      // Example: if response is {"id": 1, "status": "active", "value": 123}
+      Serial.println("\nParsed JSON data:");
+      
+      if (doc.containsKey("id")) {
+        int id = doc["id"];
+        Serial.print("ID: ");
+        Serial.println(id);
+      }
+      
+      if (doc.containsKey("status")) {
+        const char* status = doc["status"];
+        Serial.print("Status: ");
+        Serial.println(status);
+      }
+      
+      if (doc.containsKey("value")) {
+        int value = doc["value"];
+        Serial.print("Value: ");
+        Serial.println(value);
+      }
+      
     } else {
       Serial.print("Error code: ");
       Serial.println(httpResponseCode);
@@ -88,36 +123,36 @@ void setup() {
 }
 
 void loop() {
-    server.handleClient();
-    // Get raw accelerometer values
-    mpu.getAcceleration(&ax, &ay, &az);
+    // server.handleClient();
+    // // Get raw accelerometer values
+    // mpu.getAcceleration(&ax, &ay, &az);
 
-    // Calculate magnitude using raw values. 
-    // We use long to avoid overflow during squaring.
-    double totalAccel = sqrt((double)ax * ax + (double)ay * ay + (double)az * az);
+    // // Calculate magnitude using raw values. 
+    // // We use long to avoid overflow during squaring.
+    // double totalAccel = sqrt((double)ax * ax + (double)ay * ay + (double)az * az);
     
-    // In 2G mode, gravity (1G) is roughly 16384. 
-    // We calculate the difference from "static" gravity.
-    double vibration = abs(totalAccel - 16384);
+    // // In 2G mode, gravity (1G) is roughly 16384. 
+    // // We calculate the difference from "static" gravity.
+    // double vibration = abs(totalAccel - 16384);
 
-    if (vibration > VIBRATION_THRESHOLD) {
-        lastVibrationTime = millis();
-        if (!isWashing) {
-            isWashing = true;
-            Serial.println("STATUS: Machine Started/Washing...");
-        }
-    } else {
-        if (isWashing && (millis() - lastVibrationTime > FINISH_DELAY)) {
-            isWashing = false;
-            Serial.println("STATUS: Cycle Finished!");
-        }
-    }
+    // if (vibration > VIBRATION_THRESHOLD) {
+    //     lastVibrationTime = millis();
+    //     if (!isWashing) {
+    //         isWashing = true;
+    //         Serial.println("STATUS: Machine Started/Washing...");
+    //     }
+    // } else {
+    //     if (isWashing && (millis() - lastVibrationTime > FINISH_DELAY)) {
+    //         isWashing = false;
+    //         Serial.println("STATUS: Cycle Finished!");
+    //     }
+    // }
 
-    // Use Serial Plotter to tune VIBRATION_THRESHOLD
-    Serial.print("Vibration:");
-    Serial.println(vibration);
+    // // Use Serial Plotter to tune VIBRATION_THRESHOLD
+    // Serial.print("Vibration:");
+    // Serial.println(vibration);
 
-    delay(CHECK_INTERVAL);
+    // delay(CHECK_INTERVAL);
 }
 
 
