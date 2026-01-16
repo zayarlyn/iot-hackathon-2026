@@ -1,28 +1,41 @@
+import cors from 'cors'
+import { eq } from 'drizzle-orm'
 import type { Request, Response } from 'express'
 import express from 'express'
-import 'dotenv/config'
 import { db } from './db'
 import { deviceTable } from './db/schema'
-import { eq } from 'drizzle-orm'
+import 'dotenv/config'
 
 const app = express()
 app.use(express.json())
+app.use(cors({ origin: '*' }))
 const port = process.env.PORT
 
 app.get('/', (req: Request, res: Response) => {
 	res.send('Welcome to my Soul Society')
 })
 
-app.post('/update-status/:id', async (req: Request, res: Response) => {
+app.post('/predict/:id', async (req: Request, res: Response) => {
+	const id = +req.params.id || 1
+	const device = (await db.select().from(deviceTable).where(eq(deviceTable.id, id)))[0]
+
+	const vibration = req.body['avg_vibration']
+	let state = vibration >= device.spin_threshold ? 'spin' : vibration >= device.wash_threshold ? 'wash' : vibration >= device.rinse_threshold ? 'rinse' : 'idle'
+
+	await db.update(deviceTable).set({ status: state }).where(eq(deviceTable.id, id))
+	console.log(`{}vibration: ${req.body['avg_vibration']} | prediction: ${state}`)
+})
+
+app.post('/device/:id', async (req: Request, res: Response) => {
 	const id = +req.params.id || 1
 	await db.update(deviceTable).set(req.body).where(eq(deviceTable.id, id))
 	return res.json({ message: 'Status updated' })
 })
 
-app.get('/get-status/:id', async (req: Request, res: Response) => {
+app.get('/device/:id', async (req: Request, res: Response) => {
 	const id = +req.params.id || 1
-	const device = await db.select().from(deviceTable).where(eq(deviceTable.id, id))
-	return res.json(device)
+	const device = (await db.select().from(deviceTable).where(eq(deviceTable.id, id)))[0]
+	return res.json({ ...device, retrievedAt: new Date() })
 })
 
 app.listen(port, () => {
