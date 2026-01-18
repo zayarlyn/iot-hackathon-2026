@@ -1,7 +1,7 @@
-POST http://localhost:8080/update-status/1
+# POST http://localhost:8080/predict/1
+POST http://172.20.10.12:8080/predict/1
 Content-Type: application/json
 
 {
-  "status": "wash",
-  "wash_threshold": 1800
+  "avg_vibration": 1200
 }
